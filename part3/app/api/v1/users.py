@@ -1,5 +1,6 @@
 from flask_restx import Namespace, Resource, fields
 from app.services import facade
+from werkzeug.security import generate_password_hash
 
 api = Namespace('users', description='User operations')
 
@@ -8,7 +9,7 @@ user_model = api.model('User', {
     'first_name': fields.String(required=True, description='First name of the user'),
     'last_name': fields.String(required=True, description='Last name of the user'),
     'email': fields.String(required=True, description='Email of the user')
-})
+    })
 
 @api.route('/')
 class UserList(Resource):
@@ -25,9 +26,17 @@ class UserList(Resource):
         if existing_user:
             return {'error': 'Email already registered'}, 400
 
+        required_fields = ('first_name', 'last_name', 'email', 'password')
+        if not all(user_data.get(field) for field in required_fields):
+            return {"error": "Missing required fields"}, 400
+
         try:
+            hashed_password = generate_password_hash(user_data['password'])
+            user_data['password'] = hashed_password
+
             new_user = facade.create_user(user_data)
             return new_user.to_dict(), 201
+
         except Exception as e:
             return {'error': str(e)}, 400
         
@@ -46,7 +55,10 @@ class UserResource(Resource):
         user = facade.get_user(user_id)
         if not user:
             return {'error': 'User not found'}, 404
-        return user.to_dict(), 200
+        user_data = user.to_dict()
+        if 'password' in user_data:
+            del user_data['password']
+        return user_data, 200
 
     @api.expect(user_model)
     @api.response(200, 'User updated successfully')
@@ -62,3 +74,11 @@ class UserResource(Resource):
             return user.to_dict(), 200
         except Exception as e:
             return {'error': str(e)}, 400
+
+@api.route('/protected')
+class ProtectedResource(Resource):
+    @jwt_required()
+    def get(self):
+        """A protected endpoint that requires a valid JWT token"""
+        current_user = get_jwt_identity()  # Retrieve the user's identity from the token
+        return {'message': f'Hello, user {current_user["id"]}'}, 200

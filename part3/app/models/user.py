@@ -1,15 +1,17 @@
 from .basemodel import BaseModel
 import re
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 class User(BaseModel):
     emails = set()
 
-    def __init__(self, first_name, last_name, email, is_admin=False):
+    def __init__(self, first_name, last_name, email, password, is_admin=False):
         super().__init__()
         self.first_name = first_name
         self.last_name = last_name
         self.email = email
         self.is_admin = is_admin
+        self.password = self.hash_password(password)
         self.places = []
         self.reviews = []
     
@@ -73,6 +75,28 @@ class User(BaseModel):
     def delete_review(self, review):
         """Add an amenity to the place."""
         self.reviews.remove(review)
+
+    @property
+    def password(self):
+        return self.__password
+
+    @password.setter
+    def password(self, value):
+        if len(value) < 1:
+            raise ValueError("Password can not be empty")
+        self.__password = value
+
+    def hash_password(self, password):
+        """Hashes the password before storing it."""
+        from app import bcrypt
+
+        return bcrypt.generate_password_hash(password).decode('utf-8')
+
+    def verify_password(self, password):
+        """Verifies if the provided password matches the hashed password."""
+        from app import bcrypt
+
+        return bcrypt.check_password_hash(self.password, password)
 
     def to_dict(self):
         return {
