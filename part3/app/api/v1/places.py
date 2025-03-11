@@ -78,7 +78,7 @@ class PlaceResource(Resource):
     def put(self, place_id):
         """Update a place's information"""
         place_data = api.payload
-        current_user = get_jwt_identity
+        current_user = get_jwt_identity()
 
         place = facade.get_place(place_id)
         if not place:
