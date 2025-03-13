@@ -1,8 +1,8 @@
 from flask_restx import Namespace, Resource
-from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash
 from app.services import facade
-from json import request
+from flask import request
 
 api = Namespace('admin', description='Admin operations')
     
@@ -18,7 +18,7 @@ class AdminUserCreate(Resource):
         user_data = request.json
         email = user_data.get('email')
         password = user_data.get('password')
-        
+
         if not email or not password:
             return {'error': 'Email and password are required'}, 400
 
@@ -29,10 +29,11 @@ class AdminUserCreate(Resource):
         # Logic to create a new user
         new_user = facade.create_user(email=email, password=password, is_admin=user_data.get('is_admin', False))
         return {'message': 'User created successfully', 'user_id': new_user.id}, 201
-    
-    
+
+
 @api.route('/users/<user_id>')
 class AdminUserModify(Resource):
+    from app.models.basemodel import save
     @jwt_required()
     def put(self, user_id):
         current_user = get_jwt_identity()
@@ -62,7 +63,7 @@ class AdminUserModify(Resource):
         if password:
             user.password = hash_password(password)
 		# Save the modification
-        facade.update_user(user)
+        facade.save(user)
         return {'message': 'User updated successfully'}, 200
     
     
@@ -85,6 +86,7 @@ class AdminAmenityCreate(Resource):
     
 @api.route('/amenities/<amenity_id>')
 class AdminAmenityModify(Resource):
+    from app.models.basemodel import save
     @jwt_required()
     def put(self, amenity_id):
         current_user = get_jwt_identity()
@@ -99,12 +101,13 @@ class AdminAmenityModify(Resource):
 
         if name:
             amenity.name = name
-        facade.update_amenity(amenity)
+        facade.save(amenity)
         return {'message': 'Amenity updated successfully'}, 200
 
 
 @api.route('/places/<place_id>')
 class AdminPlaceModify(Resource):
+    from app.models.basemodel import save
     @jwt_required()
     def put(self, place_id):
         current_user = get_jwt_identity()
@@ -121,13 +124,13 @@ class AdminPlaceModify(Resource):
             return {'error': 'Unauthorized action'}, 403
 
         data = request.json
-        name = data.get('name')
+        title = data.get('title')
         description = data.get('description')
         # Logic to update the place
-        if name:
-            place.name = name
+        if title:
+            place.title = title
         if description:
             place.description = description
         
-        facade.update_place(place)
+        facade.save(place)
         return {'message': 'Place updated successfully'}, 200
